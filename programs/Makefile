@@ -236,7 +236,7 @@ zstd-pgo : PROF_GENERATE_FLAGS=-fprofile-generate $(if $(findstring gcc,$(CC)),-
 zstd-pgo : PROF_USE_FLAGS=-fprofile-use $(if $(findstring gcc,$(CC)),-fprofile-dir=. -Werror=missing-profile -Wno-error=coverage-mismatch)
 zstd-pgo :
 	$(MAKE) clean HASH_DIR=$(HASH_DIR)
-	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS="$(PROF_GENERATE_FLAGS)"
+	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) $(PROF_GENERATE_FLAGS)"
 	./zstd -b19i1 $(PROFILE_WITH)
 	./zstd -b16i1 $(PROFILE_WITH)
 	./zstd -b9i2 $(PROFILE_WITH)
@@ -248,8 +248,24 @@ ifndef BUILD_DIR
 else
 	$(RM) zstd $(BUILD_DIR)/zstd $(BUILD_DIR)/*.o
 endif
-	case $(CC) in *clang*) if ! [ -e default.profdata ]; then $(LLVM_PROFDATA) merge -output=default.profdata default*.profraw; fi ;; esac
-	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS="$(PROF_USE_FLAGS)"
+	case "$(CC)" in *clang*) if ! [ -e default.profdata ]; then $(LLVM_PROFDATA) merge -output=default.profdata default*.profraw; fi ;; esac
+	case "$(CC)" in *icx*) if ! [ -e default.profdata ]; then $(LLVM_PROFDATA) merge -output=default.profdata default*.profraw; fi ;; esac
+	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) $(PROF_USE_FLAGS)"
+
+## https://github.com/llvm/llvm-project/tree/main/bolt
+## zstd-bolt: zstd executable optimized with bolt
+.PHONY: zstd-bolt
+zstd-bolt :
+	$(MAKE) clean HASH_DIR=$(HASH_DIR)
+	$(MAKE) zstd-pgo HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) -gdwarf-4" LDFLAGS="$(LDFLAGS) -Wl,--emit-relocs -pthread"
+	llvm-bolt ./zstd -instrument -o ./zstd-instrument-bolt
+	./zstd-instrument-bolt -b19i1 $(PROFILE_WITH)
+	./zstd-instrument-bolt -b16i1 $(PROFILE_WITH)
+	./zstd-instrument-bolt -b9i2 $(PROFILE_WITH)
+	./zstd-instrument-bolt -b $(PROFILE_WITH)
+	./zstd-instrument-bolt -b7i2 $(PROFILE_WITH)
+	./zstd-instrument-bolt -b5 $(PROFILE_WITH)
+	llvm-bolt ./zstd -o ./zstd-bolt -data=/tmp/prof.fdata -reorder-blocks=ext-tsp -reorder-functions=hfsort -split-functions -split-all-cold -split-eh -dyno-stats
 
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
 CLEAN += zstd-small zstd-frugal

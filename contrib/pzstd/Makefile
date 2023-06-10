@@ -170,6 +170,21 @@ roundtripcheck: roundtrip check
 pzstd$(EXT): main.o $(PROGDIR)/util.o Options.o Pzstd.o SkippableFrame.o $(ZSTDDIR)/libzstd.a
 	$(LD_COMMAND)
 
+## pzstd-pgo: pzstd executable optimized with PGO.
+.PHONY: pzstd-pgo$(EXT)
+pzstd-pgo$(EXT):
+	$(MAKE) clean
+	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-generate MOREFLAGS=-fprofile-generate
+	./pzstd$(EXT) -9 --rm --force $(PROFILE_WITH)
+	./pzstd$(EXT) -d --force $(PROFILE_WITH).zst
+	./pzstd$(EXT) -9 --rm --force --processes 4 $(PROFILE_WITH)
+	./pzstd$(EXT) -d --rm --force --processes 4 $(PROFILE_WITH).zst
+	$(RM) pzstd$(EXT) *.o
+	case "$(CC)" in *clang*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
+	case "$(CC)" in *icx*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
+	$(MAKE) clean
+	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-use=$(shell pwd)/default.profdata MOREFLAGS=-fprofile-use=$(shell pwd)/default.profdata
+
 # Target that depends on all the tests
 .PHONY: tests
 tests: EXTRA_FLAGS += -Wno-deprecated-declarations
