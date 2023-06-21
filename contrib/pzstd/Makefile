@@ -59,7 +59,7 @@ GTEST_LIB  = -L googletest/build/googlemock/gtest
 LIBS       =
 
 # Compilation commands
-LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -pthread -o $@
+LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) -pthread -o $@
 CC_COMMAND  = $(CC)  $(DEPFLAGS) $(ALL_CFLAGS)   -c $<  -o $@
 CXX_COMMAND = $(CXX) $(DEPFLAGS) $(ALL_CXXFLAGS) -c $<  -o $@
 
@@ -115,6 +115,10 @@ install: pzstd$(EXT)
 	install -d -m 755 $(BINDIR)/
 	install -m 755 pzstd$(EXT) $(BINDIR)/pzstd$(EXT)
 
+install-bolt: pzstd-bolt$(EXT)
+	install -d -m 755 $(BINDIR)/
+	install -m 755 pzstd-bolt$(EXT) $(BINDIR)/pzstd-bolt$(EXT)
+
 .PHONY: uninstall
 uninstall:
 	$(RM) $(BINDIR)/pzstd$(EXT)
@@ -167,14 +171,14 @@ roundtripcheck: roundtrip check
 	$(TESTPROG) ./test/RoundTripTest$(EXT) $(TESTFLAGS)
 
 # Build the main binary
-pzstd$(EXT): main.o $(PROGDIR)/util.o Options.o Pzstd.o SkippableFrame.o $(ZSTDDIR)/libzstd.a
+pzstd$(EXT): main.o $(PROGDIR)/util.o Options.o Pzstd.o SkippableFrame.o $(ZSTDDIR)/*.o
 	$(LD_COMMAND)
 
 ## pzstd-pgo: pzstd executable optimized with PGO.
 .PHONY: pzstd-pgo$(EXT)
 pzstd-pgo$(EXT):
 	$(MAKE) clean
-	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-generate MOREFLAGS=-fprofile-generate
+	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-generate MOREFLAGS="$(MOREFLAGS) -fprofile-generate"
 	./pzstd$(EXT) -9 --rm --force $(PROFILE_WITH)
 	./pzstd$(EXT) -d --force $(PROFILE_WITH).zst
 	./pzstd$(EXT) -9 --rm --force --processes 4 $(PROFILE_WITH)
@@ -184,6 +188,17 @@ pzstd-pgo$(EXT):
 	case "$(CC)" in *icx*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
 	$(MAKE) clean
 	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-use=$(shell pwd)/default.profdata MOREFLAGS=-fprofile-use=$(shell pwd)/default.profdata
+
+.PHONY: zstd-bolt
+pzstd-bolt$(EXT):
+	$(MAKE) clean HASH_DIR=$(HASH_DIR)
+	$(MAKE) pzstd-pgo$(EXT) HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) -gdwarf-4" LDFLAGS="$(LDFLAGS) -Wl,--emit-relocs -pthread"
+	llvm-bolt ./pzstd$(EXT) -instrument -o ./pzstd-instrument-bolt$(EXT)
+	./pzstd-instrument-bolt$(EXT) -9 --rm --force $(PROFILE_WITH)
+	./pzstd-instrument-bolt$(EXT) -d --force $(PROFILE_WITH).zst
+	./pzstd-instrument-bolt$(EXT) -9 --rm --force --processes 4 $(PROFILE_WITH)
+	./pzstd-instrument-bolt$(EXT) -d --rm --force --processes 4 $(PROFILE_WITH).zst
+	llvm-bolt ./pzstd$(EXT) -o ./pzstd-bolt$(EXT) -data=/tmp/prof.fdata -reorder-blocks=ext-tsp -reorder-functions=hfsort -split-functions -split-all-cold -split-eh -dyno-stats
 
 # Target that depends on all the tests
 .PHONY: tests
@@ -201,17 +216,20 @@ roundtrip: test/RoundTripTest$(EXT)
 $(ZSTDDIR)/libzstd.a:
 	CFLAGS="$(ALL_CFLAGS)" LDFLAGS="$(ALL_LDFLAGS)" $(MAKE) -C $(ZSTDDIR) libzstd.a
 
+$(ZSTDDIR)/*.o:
+	CFLAGS="$(ALL_CFLAGS)" LDFLAGS="$(ALL_LDFLAGS)" $(MAKE) -C $(ZSTDDIR) libzstd.a
+
 # Rules to build the tests
 test/RoundTripTest$(EXT): test/RoundTripTest.o $(PROGDIR)/datagen.o \
                           $(PROGDIR)/util.o Options.o \
-                          Pzstd.o SkippableFrame.o $(ZSTDDIR)/libzstd.a
+                          Pzstd.o SkippableFrame.o $(ZSTDDIR)/*.o
 	$(LD_COMMAND)
 
 test/%Test$(EXT): PZSTD_LDFLAGS += $(GTEST_LIB)
 test/%Test$(EXT): LIBS += -lgtest -lgtest_main
 test/%Test$(EXT): test/%Test.o $(PROGDIR)/datagen.o \
                   $(PROGDIR)/util.o Options.o Pzstd.o \
-                  SkippableFrame.o $(ZSTDDIR)/libzstd.a
+                  SkippableFrame.o $(ZSTDDIR)/*.o
 	$(LD_COMMAND)
 
 utils/test/%Test$(EXT): PZSTD_LDFLAGS += $(GTEST_LIB)

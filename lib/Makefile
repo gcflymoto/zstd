@@ -123,6 +123,7 @@ $(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
 
 libzstd.a: $(ZSTD_STATLIB)
 	cp -f $< $@
+	cp -f $(subst libzstd.a,*.o,$<) .
 
 endif
 

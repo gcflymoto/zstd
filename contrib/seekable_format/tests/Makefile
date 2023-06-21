@@ -19,7 +19,7 @@ CFLAGS ?= -O3
 CFLAGS += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wconversion \
           -Wformat=2 -Wstrict-aliasing=1
 
-SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
+SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB_PATH)/*.o
 
 .PHONY: default clean test
 default: test
@@ -29,6 +29,9 @@ test: seekable_tests
 
 $(ZSTDLIB):
 	$(MAKE) -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
+
+$(ZSTDLIB_PATH)/*.o:
+	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
 
 seekable_tests : $(SEEKABLE_OBJS)
 

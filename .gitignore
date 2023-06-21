@@ -53,3 +53,11 @@ compile_commands.json
 .clangd
 perf.data
 perf.data.old
+
+# Perf files
+contrib/pzstd/default.profdata
+contrib/pzstd/default_*.profraw
+contrib/pzstd/pzstd-bolt
+contrib/pzstd/pzstd-instrument-bolt
+programs/zstd-bolt
+programs/zstd-instrument-bolt

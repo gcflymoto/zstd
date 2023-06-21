@@ -18,7 +18,7 @@ CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -I../ -I../../../lib -I../../../lib/common
 CFLAGS ?= -O3
 CFLAGS += -g
 
-SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
+SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB_PATH)/*.o
 
 .PHONY: default all clean test
 
@@ -28,6 +28,9 @@ all: seekable_compression seekable_decompression seekable_decompression_mem \
 	parallel_processing
 
 $(ZSTDLIB):
+	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
+
+$(ZSTDLIB_PATH)/*.o:
 	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
 
 seekable_compression : seekable_compression.c $(SEEKABLE_OBJS)

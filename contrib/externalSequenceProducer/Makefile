@@ -27,11 +27,14 @@ default: externalSequenceProducer
 
 all: externalSequenceProducer
 
-externalSequenceProducer: sequence_producer.c main.c $(LIBZSTD)
+externalSequenceProducer: sequence_producer.c main.c $(LIBDIR)/*.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 .PHONY: $(LIBZSTD)
 $(LIBZSTD):
+	$(MAKE) -C $(LIBDIR) libzstd.a CFLAGS="$(CFLAGS)"
+
+$(LIBDIR)/*.o:
 	$(MAKE) -C $(LIBDIR) libzstd.a CFLAGS="$(CFLAGS)"
 
 clean:
