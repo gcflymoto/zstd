@@ -1839,7 +1839,6 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     int closeDstFile = 0;
     int result;
     int transferStat = 0;
-    FILE *dstFile;
     int dstFd = -1;
 
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
@@ -1854,10 +1853,11 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
 
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
-        dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
-        if (dstFile==NULL) return 1;  /* could not open dstFileName */
-        dstFd = fileno(dstFile);
-        AIO_WritePool_setFile(ress.writeCtx, dstFile);
+        {   FILE *dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
+            if (dstFile==NULL) return 1;  /* could not open dstFileName */
+            dstFd = fileno(dstFile);
+            AIO_WritePool_setFile(ress.writeCtx, dstFile);
+        }
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
          * and the user presses Ctrl-C when asked if they wish to overwrite.
@@ -1907,6 +1907,110 @@ static const char *compressedFileExtensions[] = {
     TXZ_EXTENSION,
     LZ4_EXTENSION,
     TLZ4_EXTENSION,
+    ".7z",
+    ".aa3",
+    ".aac",
+    ".aar",
+    ".ace",
+    ".alac",
+    ".ape",
+    ".apk",
+    ".apng",
+    ".arc",
+    ".archive",
+    ".arj",
+    ".ark",
+    ".asf",
+    ".avi",
+    ".avif",
+    ".ba",
+    ".br",
+    ".bz2",
+    ".cab",
+    ".cdx",
+    ".chm",
+    ".cr2",
+    ".divx",
+    ".dmg",
+    ".dng",
+    ".docm",
+    ".docx",
+    ".dotm",
+    ".dotx",
+    ".dsft",
+    ".ear",
+    ".eftx",
+    ".emz",
+    ".eot",
+    ".epub",
+    ".f4v",
+    ".flac",
+    ".flv",
+    ".gho",
+    ".gif",
+    ".gifv",
+    ".gnp",
+    ".iso",
+    ".jar",
+    ".jpeg",
+    ".jpg",
+    ".jxl",
+    ".lz",
+    ".lzh",
+    ".m4a",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp2",
+    ".mp3",
+    ".mp4",
+    ".mpa",
+    ".mpc",
+    ".mpe",
+    ".mpeg",
+    ".mpg",
+    ".mpl",
+    ".mpv",
+    ".msi",
+    ".odp",
+    ".ods",
+    ".odt",
+    ".ogg",
+    ".ogv",
+    ".otp",
+    ".ots",
+    ".ott",
+    ".pea",
+    ".png",
+    ".pptx",
+    ".qt",
+    ".rar",
+    ".s7z",
+    ".sfx",
+    ".sit",
+    ".sitx",
+    ".sqx",
+    ".svgz",
+    ".swf",
+    ".tbz2",
+    ".tib",
+    ".tlz",
+    ".vob",
+    ".war",
+    ".webm",
+    ".webp",
+    ".wma",
+    ".wmv",
+    ".woff",
+    ".woff2",
+    ".wvl",
+    ".xlsx",
+    ".xpi",
+    ".xps",
+    ".zip",
+    ".zipx",
+    ".zoo",
+    ".zpaq",
     NULL
 };
 
@@ -2337,9 +2441,10 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
     U64 frameSize = 0;
     IOJob_t *writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
 
-    /* display last 20 characters only */
+    /* display last 20 characters only when not --verbose */
     {   size_t const srcFileLength = strlen(srcFileName);
-        if (srcFileLength>20) srcFileName += srcFileLength-20;
+        if ((srcFileLength>20) && (g_display_prefs.displayLevel<3))
+            srcFileName += srcFileLength-20;
     }
 
     ZSTD_DCtx_reset(ress->dctx, ZSTD_reset_session_only);

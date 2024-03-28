@@ -929,7 +929,10 @@ There is an exception though, when current sequence's `literals_length = 0`.
 In this case, repeated offsets are shifted by one,
 so an `offset_value` of 1 means `Repeated_Offset2`,
 an `offset_value` of 2 means `Repeated_Offset3`,
-and an `offset_value` of 3 means `Repeated_Offset1 - 1_byte`.
+and an `offset_value` of 3 means `Repeated_Offset1 - 1`.
+
+In the final case, if `Repeated_Offset1 - 1` evaluates to 0, then the
+data is considered corrupted.
 
 For the first block, the starting offset history is populated with following values :
 `Repeated_Offset1`=1, `Repeated_Offset2`=4, `Repeated_Offset3`=8,
@@ -1190,9 +1193,9 @@ Baseline is assigned starting from the higher states using fewer bits,
 increasing at each state, then resuming at the first state,
 each state takes its allocated width from Baseline.
 
-| state value      |   1   |  39   |   77   |  84  |  122   |
 | state order      |   0   |   1   |    2   |   3  |    4   |
 | ---------------- | ----- | ----- | ------ | ---- | ------ |
+| state value      |   1   |  39   |   77   |  84  |  122   |
 | width            |  32   |  32   |   32   |  16  |   16   |
 | `Number_of_Bits` |   5   |   5   |    5   |   4  |    4   |
 | range number     |   2   |   4   |    6   |   0  |    1   |
