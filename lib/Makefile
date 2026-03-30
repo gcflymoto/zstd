@@ -128,7 +128,7 @@ $(ZSTD_STATICLIB): $(ZSTD_STATICLIB_OBJ)
 	$(AR) $(ARFLAGS) $@ $^
 
 libzstd.a: $(ZSTD_STATICLIB)
-	cp -f $< $@
+	$(CP) $< $@
 	cp -f $(subst libzstd.a,*.o,$<) .
 
 endif
@@ -167,13 +167,13 @@ $(ZSTD_DYNLIB): $(ZSTD_DYNLIB_OBJ)
 	$(if $(filter -DZSTD_MULTITHREAD,$(CPPFLAGS)),\
     @echo compiling multi-threaded dynamic library $(LIBVER),\
     @echo compiling single-threaded dynamic library $(LIBVER))
-	$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
+	$(CC) $(FLAGS) $^ $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
-	ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
-	ln -sf $@ libzstd.$(SHARED_EXT)
+	$(LN) -sf $@ libzstd.$(SHARED_EXT_MAJOR)
+	$(LN) -sf $@ libzstd.$(SHARED_EXT)
 
 $(LIBZSTD): $(ZSTD_DYNLIB)
-	cp -f $< $@
+	$(CP) $< $@
 
 endif  # ifndef BUILD_DIR
 endif  # if windows
@@ -256,7 +256,7 @@ libzstd-nomt: $(ZSTD_NOMT_FILES)
         echo "Error: Found zstdmt in list."; \
         exit 1; \
     fi
-	$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
+	$(CC) $(FLAGS) $^ $(SONAME_FLAGS) -o $@
 
 .PHONY: clean
 clean:
@@ -269,7 +269,7 @@ clean:
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
-ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT% CYGWIN_NT%,$(UNAME)))
+ifneq (,$(filter $(INSTALL_OS_LIST),$(UNAME)))
 
 lib: libzstd.pc
 
@@ -364,8 +364,8 @@ install-shared:
 	[ -e $(DESTDIR)$(LIBDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	@echo Installing shared library
 	$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
-	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	$(LN) -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	$(LN) -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 
 .PHONY: install-includes
 install-includes:

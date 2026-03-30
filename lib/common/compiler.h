@@ -218,6 +218,18 @@
 #  if defined(__ARM_NEON) || defined(_M_ARM64)
 #    define ZSTD_ARCH_ARM_NEON
 #  endif
+#  if defined(__ARM_FEATURE_SVE)
+#    define ZSTD_ARCH_ARM_SVE
+#  endif
+#  if defined(__ARM_FEATURE_SVE2)
+#    define ZSTD_ARCH_ARM_SVE2
+#  endif
+#  if defined(__riscv) && defined(__riscv_vector)
+#    if ((defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 14) || \
+        (defined(__clang__) && __clang_major__ >= 19))
+        #define ZSTD_ARCH_RISCV_RVV
+#  endif
+#endif
 #
 #  if defined(ZSTD_ARCH_X86_AVX2)
 #    include <immintrin.h>
@@ -226,6 +238,12 @@
 #    include <emmintrin.h>
 #  elif defined(ZSTD_ARCH_ARM_NEON)
 #    include <arm_neon.h>
+#  endif
+#  if defined(ZSTD_ARCH_ARM_SVE) || defined(ZSTD_ARCH_ARM_SVE2)
+#    include <arm_sve.h>
+#  endif
+#  if defined(ZSTD_ARCH_RISCV_RVV)
+#    include <riscv_vector.h>
 #  endif
 #endif
 
@@ -302,10 +320,10 @@ MEM_STATIC int ZSTD_isPower2(size_t u) {
 
 #ifndef ZSTD_ALIGNED
 /* C90-compatible alignment macro (GCC/Clang). Adjust for other compilers if needed. */
-# if defined(__GNUC__)
+# if defined(__GNUC__) || defined(__clang__)
 #  define ZSTD_ALIGNED(a) __attribute__((aligned(a)))
 # elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */
-#  define ZSTD_ALIGNED(a) alignas(a)
+#  define ZSTD_ALIGNED(a) _Alignas(a)
 #elif defined(_MSC_VER)
 #  define ZSTD_ALIGNED(n) __declspec(align(n))
 # else
@@ -357,9 +375,9 @@ ptrdiff_t ZSTD_wrappedPtrDiff(unsigned char const* lhs, unsigned char const* rhs
  */
 MEM_STATIC
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
-unsigned char const* ZSTD_wrappedPtrAdd(unsigned char const* ptr, ptrdiff_t add)
+const void* ZSTD_wrappedPtrAdd(const void* ptr, ptrdiff_t add)
 {
-    return ptr + add;
+    return (const char*)ptr + add;
 }
 
 /**
@@ -370,9 +388,9 @@ unsigned char const* ZSTD_wrappedPtrAdd(unsigned char const* ptr, ptrdiff_t add)
  */
 MEM_STATIC
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
-unsigned char const* ZSTD_wrappedPtrSub(unsigned char const* ptr, ptrdiff_t sub)
+const void* ZSTD_wrappedPtrSub(const void* ptr, ptrdiff_t sub)
 {
-    return ptr - sub;
+    return (const char*)ptr - sub;
 }
 
 /**
@@ -382,9 +400,9 @@ unsigned char const* ZSTD_wrappedPtrSub(unsigned char const* ptr, ptrdiff_t sub)
  * @returns `ptr + add` except it defines `NULL + 0 == NULL`.
  */
 MEM_STATIC
-unsigned char* ZSTD_maybeNullPtrAdd(unsigned char* ptr, ptrdiff_t add)
+void* ZSTD_maybeNullPtrAdd(void* ptr, ptrdiff_t add)
 {
-    return add > 0 ? ptr + add : ptr;
+    return add > 0 ? (char*)ptr + add : ptr;
 }
 
 /* Issue #3240 reports an ASAN failure on an llvm-mingw build. Out of an
