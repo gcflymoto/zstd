@@ -172,8 +172,9 @@ pzstd$(EXT): main.o $(PROGDIR)/util.o Options.o Pzstd.o SkippableFrame.o $(ZSTDD
 	$(LD_COMMAND)
 
 ## pzstd-pgo: pzstd executable optimized with PGO.
-.PHONY: pzstd-pgo$(EXT)
-pzstd-pgo$(EXT):
+.PHONY: pzstd-pgo
+pzstd-pgo : LLVM_PROFDATA?=llvm-profdata
+pzstd-pgo :
 	$(MAKE) clean
 	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-generate MOREFLAGS="$(MOREFLAGS) -fprofile-generate"
 	./pzstd$(EXT) -9 --rm --force $(PROFILE_WITH)
@@ -181,21 +182,24 @@ pzstd-pgo$(EXT):
 	./pzstd$(EXT) -9 --rm --force --processes 4 $(PROFILE_WITH)
 	./pzstd$(EXT) -d --rm --force --processes 4 $(PROFILE_WITH).zst
 	$(RM) pzstd$(EXT) *.o
-	case "$(CC)" in *clang*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
-	case "$(CC)" in *icx*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
+	case "$(CC)" in *clang*) if ! [ -e default.profdata ]; then $(LLVM_PROFDATA) merge -output=default.profdata default*.profraw; fi ;; esac
+	case "$(CC)" in *icx*) if ! [ -e default.profdata ]; then $(LLVM_PROFDATA) merge -output=default.profdata default*.profraw; fi ;; esac
 	$(MAKE) clean
-	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-use=$(shell pwd)/default.profdata MOREFLAGS=-fprofile-use=$(shell pwd)/default.profdata
+	$(MAKE) pzstd$(EXT) EXTRA_FLAGS=-fprofile-use=$(shell pwd)/default.profdata MOREFLAGS="$(MOREFLAGS) -fprofile-use=$(shell pwd)/default.profdata"
 
-.PHONY: zstd-bolt
+## https://github.com/llvm/llvm-project/tree/main/bolt
+## pzstd-bolt: pzstd executable optimized with bolt
+.PHONY: pzstd-bolt
+pzstd-bolt : LLVM_BOLT?=llvm-bolt
 pzstd-bolt$(EXT):
-	$(MAKE) clean HASH_DIR=$(HASH_DIR)
-	$(MAKE) pzstd-pgo$(EXT) HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) -gdwarf-4" LDFLAGS="$(LDFLAGS) -Wl,--emit-relocs -pthread"
-	llvm-bolt ./pzstd$(EXT) -instrument -o ./pzstd-instrument-bolt$(EXT)
+	$(MAKE) clean
+	$(MAKE) pzstd-pgo MOREFLAGS="$(MOREFLAGS) -gdwarf-4" LDFLAGS="$(LDFLAGS) -Wl,--emit-relocs -pthread"
+	$(LLVM_BOLT) ./pzstd$(EXT) -instrument -o ./pzstd-instrument-bolt$(EXT)
 	./pzstd-instrument-bolt$(EXT) -9 --rm --force $(PROFILE_WITH)
 	./pzstd-instrument-bolt$(EXT) -d --force $(PROFILE_WITH).zst
 	./pzstd-instrument-bolt$(EXT) -9 --rm --force --processes 4 $(PROFILE_WITH)
 	./pzstd-instrument-bolt$(EXT) -d --rm --force --processes 4 $(PROFILE_WITH).zst
-	llvm-bolt ./pzstd$(EXT) -o ./pzstd-bolt$(EXT) -data=/tmp/prof.fdata -reorder-blocks=ext-tsp -reorder-functions=hfsort -split-functions -split-all-cold -split-eh -dyno-stats
+	$(LLVM_BOLT) ./pzstd$(EXT) -o ./pzstd-bolt$(EXT) -data=./prof.fdata -reorder-blocks=ext-tsp -reorder-functions=hfsort -split-functions -split-all-cold -split-eh -dyno-stats
 
 # Target that depends on all the tests
 .PHONY: tests
@@ -256,7 +260,7 @@ googletest-mingw64: googletest
 
 .PHONY: clean
 clean:
-	$(RM) -f *.o pzstd$(EXT) *.Td *.d
+	$(RM) -f *.o pzstd$(EXT) pzstd-bolt$(EXT) pzstd-instrument-bolt$(EXT) default*.profraw default.profdata prof.fdata *.Td *.d
 	$(RM) -f test/*.o test/*Test$(EXT) test/*.Td test/*.d
 	$(RM) -f utils/test/*.o utils/test/*Test$(EXT) utils/test/*.Td utils/test/*.d
 	$(RM) -f $(PROGDIR)/*.o $(PROGDIR)/*.Td $(PROGDIR)/*.d
