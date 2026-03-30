@@ -28,11 +28,14 @@ default: largeNbDicts
 
 all : largeNbDicts
 
-largeNbDicts: util.o timefn.o benchfn.o datagen.o xxhash.o largeNbDicts.c $(LIBZSTD)
+largeNbDicts: util.o timefn.o benchfn.o datagen.o largeNbDicts.c $(LIBDIR)/*.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 .PHONY: $(LIBZSTD)
 $(LIBZSTD):
+	$(MAKE) -C $(LIBDIR) libzstd.a CFLAGS="$(CFLAGS)"
+
+$(LIBDIR)/*.o:
 	$(MAKE) -C $(LIBDIR) libzstd.a CFLAGS="$(CFLAGS)"
 
 benchfn.o: $(PROGDIR)/benchfn.c

@@ -19,20 +19,43 @@ CFLAGS ?= -O3
 CFLAGS += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wconversion \
           -Wformat=2 -Wstrict-aliasing=1
 
-SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
+SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB_PATH)/*.o
 
 .PHONY: default clean test
 default: test
 
-test: seekable_tests
+test: seekable_tests parallel_compression_test
 	./seekable_tests
 
 $(ZSTDLIB):
 	$(MAKE) -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
 
+$(ZSTDLIB_PATH)/*.o:
+	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
+
 seekable_tests : $(SEEKABLE_OBJS)
+
+EXAMPLES_PATH = ../examples
+PARALLEL_COMPRESSION = $(EXAMPLES_PATH)/parallel_compression
+
+DATAGEN_PATH = ../../../tests
+DATAGEN = $(DATAGEN_PATH)/datagen
+
+$(PARALLEL_COMPRESSION):
+	$(MAKE) -C $(EXAMPLES_PATH) parallel_compression
+
+$(DATAGEN):
+	$(MAKE) -C $(DATAGEN_PATH) datagen
+
+data.txt: $(DATAGEN)
+	$(DATAGEN) -g100M > $@
+
+parallel_compression_test: $(PARALLEL_COMPRESSION) data.txt
+	ulimit -Sv 102400; $(PARALLEL_COMPRESSION) data.txt 1048576 2
+
+.PHONY: parallel_compression_test parallel_comp
 
 clean:
 	@$(RM) core *.o tmp* result* *.zst \
-		seekable_tests
+		seekable_tests data.txt
 	@echo Cleaning completed
