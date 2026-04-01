@@ -192,9 +192,9 @@ pzstd-pgo :
 .PHONY: pzstd-bolt
 pzstd-bolt : LLVM_BOLT?=llvm-bolt
 pzstd-bolt$(EXT):
-	$(MAKE) clean
-	$(MAKE) pzstd-pgo MOREFLAGS="$(MOREFLAGS) -gdwarf-4" LDFLAGS="$(LDFLAGS) -Wl,--emit-relocs -pthread"
-	$(LLVM_BOLT) ./pzstd$(EXT) -instrument -o ./pzstd-instrument-bolt$(EXT)
+	$(MAKE) clean HASH_DIR=$(HASH_DIR)
+	$(MAKE) pzstd-pgo$(EXT) HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) -gdwarf-4" LDFLAGS="$(LDFLAGS) -Wl,--emit-relocs -pthread"
+	llvm-bolt ./pzstd$(EXT) -instrument -instrumentation-file=./prof.fdata -o ./pzstd-instrument-bolt$(EXT)
 	./pzstd-instrument-bolt$(EXT) -9 --rm --force $(PROFILE_WITH)
 	./pzstd-instrument-bolt$(EXT) -d --force $(PROFILE_WITH).zst
 	./pzstd-instrument-bolt$(EXT) -9 --rm --force --processes 4 $(PROFILE_WITH)

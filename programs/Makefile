@@ -259,7 +259,7 @@ zstd-bolt : LLVM_BOLT?=llvm-bolt
 zstd-bolt :
 	$(MAKE) clean HASH_DIR=$(HASH_DIR)
 	$(MAKE) zstd-pgo HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) -gdwarf-4" LDFLAGS="$(LDFLAGS) -Wl,--emit-relocs -pthread"
-	$(LLVM_BOLT) ./zstd -instrument -o ./zstd-instrument-bolt
+	llvm-bolt ./zstd -instrument -instrumentation-file=./prof.fdata -o ./zstd-instrument-bolt
 	./zstd-instrument-bolt -b19i1 $(PROFILE_WITH)
 	./zstd-instrument-bolt -b16i1 $(PROFILE_WITH)
 	./zstd-instrument-bolt -b9i2 $(PROFILE_WITH)
